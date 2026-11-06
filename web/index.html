@@ -4,10 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reminders · prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#edeae3;--card:#f7f5f0;--ink:#152d2c;--sub:#5d6b69;--line:#e0dbd0;--btn:#1e4b4a;--teal:#0b595f;--mark:rgba(201,109,71,.22);--ok:#2f7d4f;--bad:#b42318;--warm:#9a4a26}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Geist,Inter,system-ui,-apple-system,sans-serif}
   header{padding:26px 32px 6px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:26px;letter-spacing:-.01em}
   header p{margin:0;color:var(--sub)}
@@ -27,14 +30,12 @@
   .noteview{white-space:pre-wrap;overflow:auto;cursor:text}
   mark{background:var(--mark);border-radius:4px;padding:0 2px}
   .row{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
-  button.primary{background:var(--btn);color:#fff;border:0;border-radius:999px;padding:9px 20px;font:600 14px Inter,system-ui;cursor:pointer}
+  button.primary{background:var(--btn);color:#fff;border:0;border-radius:999px;padding:9px 20px;font:600 14px Geist,Inter,system-ui;cursor:pointer}
   button.ghost{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font:inherit;cursor:pointer;color:var(--ink)}
   button:disabled{opacity:.5;cursor:default}
 
-  .summary{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 16px}
-  .pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px}
-  .pill b{color:var(--teal)}
-  .summary label{margin-left:auto;font-size:13px;color:var(--sub);display:flex;gap:6px;align-items:center;cursor:pointer}
+  .summary{display:flex;justify-content:flex-end;margin:0 0 8px;min-height:20px}
+  .summary label{font-size:13px;color:var(--sub);display:flex;gap:6px;align-items:center;cursor:pointer}
 
   .sess{margin-bottom:26px}
   .sess-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
@@ -67,10 +68,24 @@
   details.drops div{color:var(--bad);margin:3px 0}
   .err{color:var(--bad);font-weight:600}
   .empty{color:var(--sub);font-style:italic}
-  .hide-done .it.done{display:none}
+  .hide-done .c:not(.show) .it.done{display:none}
+  .donel{display:none;background:none;border:0;padding:8px 0 6px;font:500 13px Geist,Inter,system-ui;color:var(--ok);cursor:pointer;text-align:left}
+  .donel:hover{text-decoration:underline}
+  .hide-done .donel{display:block}
+  .c.show .donel .when-hidden,.c:not(.show) .donel .when-shown{display:none}
+  .sess-h .alld{display:none;font-size:13px;font-weight:600;color:var(--ok);background:#e8f4ec;border-radius:999px;padding:2px 10px;cursor:pointer;border:0;font-family:inherit}
+  .hide-done .sess.alldone:not(.expanded) .cards,.hide-done .sess.alldone:not(.expanded) .drops{display:none}
+  .hide-done .sess.alldone .alld{display:inline-block}
+  .hide-done .sess.alldone:not(.expanded){margin-bottom:12px}
+  .hide-done .sess.alldone:not(.expanded) h3{color:var(--sub)}
+  .klara{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:#152d2c;color:#fff;border:0;border-radius:999px;padding:6px 13px 6px 11px;font:500 13px Geist,Inter,system-ui;cursor:pointer;transition:background .15s}
+  .klara:hover{background:#0b595f}
+  .klara svg{width:13px;height:13px}
+  #toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:#152d2c;color:#fff;padding:12px 18px;border-radius:12px;font:14px Geist,Inter,system-ui;box-shadow:0 10px 30px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:all .2s;max-width:520px;text-align:center}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
-<body>
+<body class="hide-done">
 <header>
   <h1>Reminders</h1>
   <p>Prototype: what each session leaves for later, quoted from the note, ticked off when it happens.</p>
@@ -100,10 +115,15 @@
     <div id="out"><div class="panel"><p class="empty">Run the sessions to see the reminders each one leaves.</p></div></div>
   </section>
 </main>
+<div id="toast" role="status"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const SPARK = `<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0c.4 3.9 1.9 5.6 6 6-4.1.4-5.6 2.1-6 6-.4-3.9-1.9-5.6-6-6 4.1-.4 5.6-2.1 6-6z"/><path d="M13.5 10.5c.2 1.6.8 2.3 2.5 2.5-1.7.2-2.3.9-2.5 2.5-.2-1.6-.8-2.3-2.5-2.5 1.7-.2 2.3-.9 2.5-2.5z" opacity=".7"/></svg>`;
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 3200); }
+
 const CARDS = [
   { id: "todo", name: "To do", sub: "you owe" },
   { id: "check_in", name: "Check in on", sub: "client homework" },
@@ -195,12 +215,8 @@ function renderOut() {
     if (e.closedAt !== undefined && e.how !== "ticked by therapist") return "auto";
     return "open";
   };
-  const openCount = (card) => all.filter((e) => e.item.card === card && state(e) === "open").length;
-  $("summary").innerHTML = `<span class="pill">Open now: <b>${openCount("todo")}</b> to do</span>
-    <span class="pill"><b>${openCount("check_in")}</b> to check in on</span>
-    <span class="pill"><b>${openCount("prep")}</b> to prep</span>
-    <label><input type="checkbox" id="hideDone" ${document.body.classList.contains("hide-done") ? "checked" : ""}> Hide done</label>`;
-  $("hideDone").onchange = (ev) => document.body.classList.toggle("hide-done", ev.target.checked);
+  $("summary").innerHTML = `<label><input type="checkbox" id="showDone" ${document.body.classList.contains("hide-done") ? "" : "checked"}> Show done</label>`;
+  $("showDone").onchange = (ev) => document.body.classList.toggle("hide-done", !ev.target.checked);
 
   const last = lastRun.sessions.length - 1;
   const blocks = lastRun.sessions.map((s, i) => {
@@ -218,20 +234,33 @@ function renderOut() {
         if (r.consent_required && st === "open") chips.push(`<span class="c-consent">Consent check · ${esc(r.third_party)}</span>`);
         const showQuote = st === "auto" ? e.evidence : r.source_span;
         const quoteFrom = st === "auto" ? e.closedAt : i;
+        const action = r.card === "todo" && st === "open"
+          ? `<button class="klara" data-title="${esc(r.title)}">${SPARK}${r.type === "checkpoint" ? "Ask Klara" : "Draft with Klara"}</button>` : "";
         return `<div class="it ${st === "open" ? "" : "done"}">
           <input type="checkbox" data-key="${esc(keyOf(r))}" ${st !== "open" ? "checked" : ""} ${st === "auto" ? "disabled title=\"Ticked from a later note\"" : ""}>
           <div><div class="t">${esc(r.title)}</div>
           <div class="q" data-i="${quoteFrom}" data-span="${esc(showQuote)}">“${esc(showQuote)}”</div>
-          ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}</div></div>`;
+          ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}${action}</div></div>`;
       }).join("");
-      return `<div class="c ${c.id}"><h4>${c.name}<span>${items.length ? `${openN} open` : c.sub}</span></h4>${rows || `<div class="none">Nothing here</div>`}</div>`;
+      const doneN = items.length - openN;
+      const doneLine = doneN
+        ? `<button class="donel"><span class="when-hidden">✓ ${openN ? `${doneN} done` : `All done (${doneN})`} · show</span><span class="when-shown">Hide done</span></button>` : "";
+      return `<div class="c ${c.id}"><h4>${c.name}<span>${items.length ? `${openN} open` : c.sub}</span></h4>${rows || `<div class="none">Nothing here</div>`}${doneLine}</div>`;
     }).join("");
     const drops = s.rejected.length ? `<details class="drops"><summary>Dropped by the checks (${s.rejected.length})</summary>${s.rejected.map((d) => `<div>${esc(d.item.title || "Closing claim")}: ${esc(d.reason)}</div>`).join("")}</details>` : "";
-    return `<div class="sess"><div class="sess-h"><h3>${label(i)} - ${esc(s.title)}</h3><span class="meta">${s.date}</span></div><div class="cards">${cards}</div>${drops}</div>`;
+    const sessOpen = mine.filter((e) => state(e) === "open").length;
+    const allDone = mine.length > 0 && sessOpen === 0;
+    return `<div class="sess ${allDone ? "alldone" : ""}"><div class="sess-h"><h3>${label(i)} - ${esc(s.title)}</h3><span class="meta">${s.date}</span>${allDone ? `<button class="alld">✓ All done · show</button>` : ""}</div><div class="cards">${cards}</div>${drops}</div>`;
   }).reverse().join("");
   $("out").innerHTML = blocks;
 
   $("out").querySelectorAll(".q").forEach((el) => el.onclick = () => showSpan(+el.dataset.i, el.dataset.span));
+  $("out").querySelectorAll(".donel").forEach((b) => b.onclick = () => b.closest(".c").classList.toggle("show"));
+  $("out").querySelectorAll(".alld").forEach((b) => b.onclick = () => {
+    const sess = b.closest(".sess"); sess.classList.toggle("expanded");
+    b.textContent = sess.classList.contains("expanded") ? "✓ All done · hide" : "✓ All done · show";
+  });
+  $("out").querySelectorAll(".klara").forEach((b) => b.onclick = () => toast(`Prototype only. In Klarify this would open Klara with the client and this note attached, ready to draft: "${b.dataset.title}".`));
   $("out").querySelectorAll(".it input:not([disabled])").forEach((cb) => cb.onchange = () => {
     const t = getTicks();
     cb.checked ? t.add(cb.dataset.key) : t.delete(cb.dataset.key);
