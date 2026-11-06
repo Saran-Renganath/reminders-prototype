@@ -1,19 +1,21 @@
-// npm run extract -- evals/notes/jordan-s3.txt evals/notes/jordan-s4.txt
+// npm run extract -- evals/notes/jordan-s3.txt evals/notes/jordan-s4.txt [--provider=rules|claude-code|api]
 // Runs the notes in order as consecutive sessions for one client and prints what's open after each.
 
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { runOpenLoops } from "./pipeline.js";
-import { AnthropicProvider } from "./provider.js";
+import { makeProvider, providerFromArgs } from "./providers.js";
 import type { OpenLoop } from "./types.js";
 
-const files = process.argv.slice(2);
+const files = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 if (!files.length) {
   console.error("Usage: npm run extract -- <note1.txt> [note2.txt ...]");
   process.exit(1);
 }
 
-const provider = new AnthropicProvider();
+const providerName = providerFromArgs();
+const provider = makeProvider(providerName);
+console.log(`Provider: ${providerName}`);
 let open: OpenLoop[] = [];
 const start = new Date("2026-11-06");
 

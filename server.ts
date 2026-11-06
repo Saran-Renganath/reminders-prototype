@@ -3,7 +3,8 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runOpenLoops } from "./src/pipeline.js";
-import { AnthropicProvider, FixedProvider, type Provider } from "./src/provider.js";
+import { FixedProvider, type Provider } from "./src/provider.js";
+import { hasClaudeCli, makeProvider, resolveProvider, type ProviderName } from "./src/providers.js";
 import type { Candidate, OpenLoop } from "./src/types.js";
 
 try { process.loadEnvFile?.(".env"); } catch { /* no .env, fine */ }
@@ -47,25 +48,26 @@ createServer(async (req, res) => {
       return;
     }
     if (req.method === "GET" && req.url === "/api/samples") {
-      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ samples, hasKey: Boolean(process.env.ANTHROPIC_API_KEY) }));
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ samples, available: { rules: true, "claude-code": hasClaudeCli(), api: Boolean(process.env.ANTHROPIC_API_KEY) }, default: resolveProvider(undefined) }));
       return;
     }
     if (req.method === "POST" && req.url === "/api/run") {
       let body = "";
       for await (const chunk of req) body += chunk;
-      const { notes, demo } = JSON.parse(body) as { notes: string[]; demo?: boolean };
+      const { notes, demo, provider: chosen } = JSON.parse(body) as { notes: string[]; demo?: boolean; provider?: ProviderName };
+      const name = resolveProvider(chosen);
 
       const sessions = [];
       let open: OpenLoop[] = [];
       for (const [i, note] of notes.entries()) {
         const date = new Date(Date.UTC(2026, 10, 6 + i * 7)).toISOString().slice(0, 10);
-        const provider: Provider = demo ? demoProvider(i, open) : new AnthropicProvider();
+        const provider: Provider = demo ? demoProvider(i, open) : makeProvider(name);
         const t0 = Date.now();
         const result = await runOpenLoops({ note, sessionId: `session-${i + 1}`, sessionDate: date, previous: open, provider });
         sessions.push({ date, ms: Date.now() - t0, ...result });
         open = result.loops.filter((l) => l.status === "open");
       }
-      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ sessions }));
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ sessions, provider: demo ? "demo" : name }));
       return;
     }
     res.writeHead(404).end("Not found");

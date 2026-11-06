@@ -14,8 +14,8 @@ export interface Session {
   file: string;
   date: string;
   expectNew: ExpectedNew[];
-  /** Phrases identifying carried items that this note should close. */
-  expectClosed: string[];
+  /** Carried items this note should close, identified by type + a phrase from their source quote. */
+  expectClosed: ExpectedNew[];
 }
 
 export interface Case {
@@ -42,7 +42,10 @@ export const CASES: Case[] = [
         file: "jordan-s5.txt",
         date: "2026-11-20",
         expectNew: [],
-        expectClosed: ["progress letter", "extended health insurance"],
+        expectClosed: [
+          { type: "letter_or_form", match: "progress letter" },
+          { type: "billing_or_admin", match: "extended health insurance" },
+        ],
       },
     ],
   },

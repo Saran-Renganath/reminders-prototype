@@ -18,23 +18,25 @@ earlier open loops ──▶ "is this closed?" ──────┘  (closing a
 - **Guards:** max 3 new items per session, duplicate detection against what's already open, malformed due dates ignored, consent flag whenever a third party (doctor, insurer, employer) is involved.
 - **Cheap by design:** runs on the note, not the transcript, with a small model and one structured call. Drafting the letter itself is out of scope here and would only run when the therapist taps.
 
-## Run it
+## Run it (no API key needed)
 
 ```bash
 npm install
-cp .env.example .env        # add your ANTHROPIC_API_KEY
-npm test                    # 14 unit tests, no API key needed
-npm run dev                 # http://localhost:3000
+npm test                                   # 21 unit tests, fully offline
+npm run dev                                # http://localhost:3000
+npm run eval -- --provider=rules           # offline keyword baseline
+npm run eval -- --provider=claude-code     # real Claude, via your Claude subscription
 ```
 
-The UI has a **Demo without a key** button. It skips the model and feeds the pipeline a fixed proposal containing one invented item ("Thank you for referring Jordan") and one false closing claim, so you can watch both get rejected.
+Three ways to run extraction:
 
-With a key:
+| Provider | Needs | What it is |
+|---|---|---|
+| `rules` | nothing | Keyword baseline, no AI. Tuned on the sample notes, so treat its scores as a pipeline check, not a quality claim. |
+| `claude-code` | Claude Code CLI, signed in once with your Claude plan | Same prompt and JSON schema as the API, sent through `claude -p` with all tools disabled. |
+| `api` | `ANTHROPIC_API_KEY` in `.env` | Direct API call with forced tool use. |
 
-```bash
-npm run extract -- evals/notes/jordan-s3.txt evals/notes/jordan-s4.txt evals/notes/jordan-s5.txt
-npm run eval                # precision, recall, closing accuracy, span-check drops
-```
+With no flag, it uses the API if a key is set, then Claude Code if installed, then rules. Step-by-step instructions are in `TESTING.md`.
 
 ## Layout
 
@@ -42,7 +44,9 @@ npm run eval                # precision, recall, closing accuracy, span-check dr
 |---|---|
 | `src/ground.ts` | Normalise + span check |
 | `src/pipeline.ts` | Ground, carry forward, close with evidence, dedupe, cap |
-| `src/provider.ts` | Claude call (forced tool use, temperature 0) and a fixed provider for tests |
+| `src/provider.ts` | Shared prompt and schema, API provider, fixed provider for tests |
+| `src/claudeCode.ts` | Claude Code CLI provider (no API key) |
+| `src/rules.ts` | Offline keyword baseline |
 | `evals/` | Five fictional notes across three clients, hand-labelled expectations, eval runner |
 | `test/` | Unit tests for the span check and pipeline |
 | `web/index.html` | One-page demo UI; click any item to highlight its quote in the note |
@@ -53,7 +57,7 @@ All notes are fictional. `jordan-s3.txt` and `jordan-s4.txt` are notes Klarify g
 
 ## Not done yet
 
-- Results from `npm run eval` on a real model run (needs a key)
+- Results from `npm run eval -- --provider=claude-code` on notes the rules were not tuned on
 - Drafting the letter or reply from an open item
 - Persistence (items live in memory per request)
 - Checking the three item types with real therapists

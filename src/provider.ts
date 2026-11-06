@@ -17,7 +17,7 @@ export interface Provider {
   propose(input: ProposeInput): Promise<Proposal>;
 }
 
-const SYSTEM = `You read a therapist's session note and list what the THERAPIST still owes after the session.
+export const SYSTEM = `You read a therapist's session note and list what the THERAPIST still owes after the session.
 
 Only three kinds of item count:
 - letter_or_form: a letter, report, form or document someone asked for (doctor, insurer, employer, school, lawyer, the client).
@@ -34,7 +34,7 @@ Rules:
 
 You may also be given items still open from earlier sessions. For each, report status "done" only if THIS note shows it was handled, and quote that evidence exactly in evidence_span. Otherwise "still_open" with evidence_span null. Never repeat an earlier item as a new candidate.`;
 
-const TOOL: Anthropic.Tool = {
+export const TOOL: Anthropic.Tool = {
   name: "report_open_loops",
   description: "Report the follow-ups the therapist owes, and the status of earlier open items.",
   input_schema: {
