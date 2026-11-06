@@ -23,7 +23,7 @@ npm install
 npm test
 ```
 
-Expect `21 passed`. These check the span check, carry-forward, closing with evidence, duplicates, the cap, and both no-key providers.
+Expect `27 passed`. These check the span check, carry-forward, closing with evidence, duplicates, the cap, and both no-key providers.
 
 ## 4. Try the app (offline)
 
@@ -33,9 +33,12 @@ npm run dev
 
 Open http://localhost:3000.
 
-- Pick **Rules (offline, no AI)** and press **Run**. You should see 3 items after session 3, the same 3 carried into session 4, and 2 closed in session 5.
-- Click any item. Its quote lights up in the note on the left.
-- Press **Demo without a key**. An invented "Thank the referring doctor" item gets dropped, and so does a false "insurer approved" closing claim.
+- Pick **Rules (offline, no AI)** and press **Run**. Each session shows three cards: To do, Check in on, Prep for next session. Newest session is at the top.
+- In Session 3, the letter and billing question show "Done in Session 5". The sleep clinic referral shows "Still open".
+- Tick the sleep clinic referral. It becomes "Ticked by you". Press Run again: it stays ticked and "Open now" drops to 0 to do.
+- Click any quote. It lights up in the note on the left.
+- Switch the client to **Maya** and Run. The court summary stays open (drafted isn't sent) and nothing closes in Session 2 ("went over the paperwork" is too vague).
+- Press **Demo**. An invented "Thank the referring doctor" item gets dropped, and so does a false "insurer approved" closing claim (open "Dropped by the checks").
 
 ## 5. Run it with real Claude, no API key
 

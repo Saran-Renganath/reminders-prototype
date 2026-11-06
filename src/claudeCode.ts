@@ -63,7 +63,7 @@ export function parseClaudeCodeOutput(stdout: string): Proposal {
   }
   const p = (body ?? {}) as Partial<Proposal>;
   if (!Array.isArray(p.candidates)) throw new Error("Claude Code response had no candidates array.");
-  return { candidates: p.candidates, updates: Array.isArray(p.updates) ? p.updates : [] };
+  return { session_title: typeof p.session_title === "string" ? p.session_title : undefined, candidates: p.candidates, updates: Array.isArray(p.updates) ? p.updates : [] };
 }
 
 function run(bin: string, args: string[], input: string, timeoutMs: number): Promise<string> {

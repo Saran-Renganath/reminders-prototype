@@ -1,13 +1,19 @@
 import { createHash } from "node:crypto";
 import { checkSpan, normalize } from "./ground.js";
 import type { Provider } from "./provider.js";
-import type { Candidate, ExtractionResult, LoopType, OpenLoop, Rejected } from "./types.js";
+import { ITEM_TYPES, cardOf, type Candidate, type Card, type Rejected, type Reminder, type SessionResult } from "./types.js";
 
-/** Alert-fatigue guard: at most this many NEW items per session. */
-export const MAX_NEW_PER_SESSION = 3;
+/** Alert-fatigue guard: at most this many NEW items per card per session. */
+export const CAPS: Record<Card, number> = { todo: 3, check_in: 5, prep: 5 };
+/** Kept for older imports. */
+export const MAX_NEW_PER_SESSION = CAPS.todo;
 
-const TYPES: LoopType[] = ["letter_or_form", "billing_or_admin", "checkpoint"];
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Stable across runs: same type + same quote = same item. Used for the therapist's own ticks. */
+export function itemKey(c: Pick<Candidate, "type" | "source_span">): string {
+  return `${c.type}|${normalize(c.source_span)}`;
+}
 
 export function loopId(sessionId: string, c: Pick<Candidate, "type" | "title">): string {
   return createHash("sha256").update(`${sessionId}|${c.type}|${normalize(c.title)}`).digest("hex").slice(0, 12);
@@ -28,35 +34,48 @@ export interface RunInput {
   note: string;
   sessionId: string;
   sessionDate: string;
-  previous?: OpenLoop[];
+  previous?: Reminder[];
   provider: Provider;
+  /** Keys (see itemKey) of items the therapist ticked by hand. They close at once and are never carried. */
+  manualDone?: Set<string>;
   now?: string;
 }
 
 /**
  * One pass per note:
- *  1. the provider proposes new items and status updates for carried items
- *  2. every new item must pass the span check against THIS note
- *  3. a carried item can only be closed with a quote from THIS note
- *  4. duplicates of carried items are dropped, new items are capped
+ *  1. items the therapist ticked by hand are closed and left out of the model call
+ *  2. the provider proposes new items and status updates for carried items
+ *  3. every new item must pass the span check against THIS note
+ *  4. a carried item can only be closed with a quote from THIS note
+ *  5. duplicates of carried items are dropped, new items are capped per card
  */
-export async function runOpenLoops(input: RunInput): Promise<ExtractionResult> {
+export async function runReminders(input: RunInput): Promise<SessionResult> {
   const { note, sessionId, sessionDate, provider } = input;
   const now = input.now ?? new Date().toISOString();
-  const previous = (input.previous ?? []).filter((l) => l.status === "open");
-  const proposal = await provider.propose({ note, sessionDate, previous });
+  const manual = input.manualDone ?? new Set<string>();
   const rejected: Rejected[] = [];
 
+  const stillOpen = (input.previous ?? []).filter((l) => l.status === "open");
+  const ticked = stillOpen.filter((l) => manual.has(itemKey(l)));
+  const previous = stillOpen.filter((l) => !manual.has(itemKey(l)));
+
+  const proposal = await provider.propose({ note, sessionDate, previous });
+
+  const closedByHand: Reminder[] = ticked.map((l) => ({
+    ...l,
+    status: "done",
+    history: [...l.history, { at: now, session_id: sessionId, event: "ticked by therapist" }],
+  }));
+
   // Carried items: stay open unless closed with grounded evidence.
-  const carried: OpenLoop[] = previous.map((loop) => {
+  const carried: Reminder[] = previous.map((loop) => {
     const u = proposal.updates.find((x) => x.id === loop.id);
-    if (!u || u.status === "still_open") {
-      return { ...loop, history: [...loop.history, { at: now, session_id: sessionId, event: "carried forward" }] };
-    }
+    const keep = (): Reminder => ({ ...loop, history: [...loop.history, { at: now, session_id: sessionId, event: "carried forward" }] });
+    if (!u || u.status === "still_open") return keep();
     const check = checkSpan(note, u.evidence_span);
     if (!check.ok) {
       rejected.push({ item: u, reason: `kept open: closing evidence failed (${check.reason})` });
-      return { ...loop, history: [...loop.history, { at: now, session_id: sessionId, event: "carried forward" }] };
+      return keep();
     }
     return {
       ...loop,
@@ -66,9 +85,10 @@ export async function runOpenLoops(input: RunInput): Promise<ExtractionResult> {
   });
 
   // New items.
-  const fresh: OpenLoop[] = [];
+  const fresh: Reminder[] = [];
+  const count: Record<Card, number> = { todo: 0, check_in: 0, prep: 0 };
   for (const c of proposal.candidates) {
-    if (!TYPES.includes(c.type)) {
+    if (!ITEM_TYPES.includes(c.type)) {
       rejected.push({ item: c, reason: `unknown type "${c.type}"` });
       continue;
     }
@@ -77,27 +97,43 @@ export async function runOpenLoops(input: RunInput): Promise<ExtractionResult> {
       rejected.push({ item: c, reason: check.reason });
       continue;
     }
-    if ([...previous, ...fresh].some((l) => isDuplicate(l, c))) {
+    if ([...stillOpen, ...fresh].some((l) => isDuplicate(l, c))) {
       rejected.push({ item: c, reason: "duplicate of an item already open" });
       continue;
     }
-    if (fresh.length >= MAX_NEW_PER_SESSION) {
-      rejected.push({ item: c, reason: `over the ${MAX_NEW_PER_SESSION}-per-session cap` });
+    const card = cardOf(c.type);
+    if (count[card] >= CAPS[card]) {
+      rejected.push({ item: c, reason: `over the ${CAPS[card]}-per-session cap for ${card}` });
       continue;
     }
-    fresh.push({
+    count[card]++;
+    const third = card === "todo" ? c.third_party?.trim() || null : null;
+    const item: Reminder = {
       type: c.type,
+      card,
       title: c.title.trim(),
       source_span: c.source_span.trim(),
-      third_party: c.third_party?.trim() || null,
+      third_party: third,
       due: c.due && ISO_DATE.test(c.due) ? c.due : null,
       id: loopId(sessionId, c),
       session_id: sessionId,
       status: "open",
-      consent_required: Boolean(c.third_party?.trim()),
+      consent_required: Boolean(third),
       history: [{ at: now, session_id: sessionId, event: "opened" }],
-    });
+    };
+    if (manual.has(itemKey(item))) {
+      item.status = "done";
+      item.history.push({ at: now, session_id: sessionId, event: "ticked by therapist" });
+    }
+    fresh.push(item);
   }
 
-  return { loops: [...carried, ...fresh], rejected };
+  const title = proposal.session_title?.trim() || "Session";
+  return { title, reminders: [...closedByHand, ...carried, ...fresh], rejected };
+}
+
+/** Older name, same function shape the earlier tests and eval used ({ loops }). */
+export async function runOpenLoops(input: RunInput) {
+  const r = await runReminders(input);
+  return { loops: r.reminders, rejected: r.rejected, title: r.title };
 }

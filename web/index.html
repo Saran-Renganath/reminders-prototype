@@ -3,59 +3,82 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Open Loops · prototype</title>
+<title>Reminders · prototype</title>
 <style>
-  :root{--bg:#edeae3;--card:#f7f5f0;--ink:#152d2c;--sub:#5d6b69;--line:#e0dbd0;--btn:#1e4b4a;--teal:#0b595f;--mark:rgba(201,109,71,.22);--ok:#2f7d4f;--bad:#b42318}
+  :root{--bg:#edeae3;--card:#f7f5f0;--ink:#152d2c;--sub:#5d6b69;--line:#e0dbd0;--btn:#1e4b4a;--teal:#0b595f;--mark:rgba(201,109,71,.22);--ok:#2f7d4f;--bad:#b42318;--warm:#9a4a26}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,sans-serif}
-  header{padding:28px 36px 8px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+  header{padding:26px 32px 6px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:26px;letter-spacing:-.01em}
   header p{margin:0;color:var(--sub)}
-  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;padding:20px 36px 40px}
-  @media (max-width:960px){main{grid-template-columns:1fr}}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
-  main > .panel:first-child{align-self:start;position:sticky;top:20px}
-  .tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  main{display:grid;grid-template-columns:440px minmax(0,1fr);gap:22px;padding:18px 32px 40px;align-items:start}
+  @media (max-width:1100px){main{grid-template-columns:1fr}}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
+  .left{position:sticky;top:16px}
+  @media (max-width:1100px){.left{position:static}}
+  h2{font-size:18px;margin:0 0 4px}
+  .hint{color:var(--sub);font-size:13px}
+  select{appearance:none;background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 34px 8px 14px;font:inherit;color:var(--ink);cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px;background-repeat:no-repeat;max-width:100%}
+  .tabs{display:flex;gap:8px;margin:12px 0 10px;flex-wrap:wrap}
   .tab{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;font:inherit}
   .tab.on{background:var(--btn);color:#fff;border-color:var(--btn)}
-  textarea{width:100%;height:340px;border:1px solid var(--line);border-radius:12px;padding:14px;font:13px/1.55 ui-monospace,Menlo,monospace;background:#fff;color:var(--ink);resize:vertical}
-  .noteview{white-space:pre-wrap;font:13px/1.55 ui-monospace,Menlo,monospace;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;max-height:340px;overflow:auto}
+  textarea,.noteview{width:100%;height:300px;border:1px solid var(--line);border-radius:12px;padding:12px;font:12.5px/1.55 ui-monospace,Menlo,monospace;background:#fff;color:var(--ink)}
+  textarea{resize:vertical}
+  .noteview{white-space:pre-wrap;overflow:auto;cursor:text}
   mark{background:var(--mark);border-radius:4px;padding:0 2px}
-  .row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
-  button.primary{background:var(--btn);color:#fff;border:0;border-radius:999px;padding:10px 20px;font:600 14px Inter,system-ui;cursor:pointer}
-  select{appearance:none;background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 34px 9px 16px;font:inherit;color:var(--ink);cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px;background-repeat:no-repeat}
-  button.ghost{background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 16px;font:inherit;cursor:pointer}
+  .row{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  button.primary{background:var(--btn);color:#fff;border:0;border-radius:999px;padding:9px 20px;font:600 14px Inter,system-ui;cursor:pointer}
+  button.ghost{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font:inherit;cursor:pointer;color:var(--ink)}
   button:disabled{opacity:.5;cursor:default}
-  .hint{color:var(--sub);font-size:13px}
-  h2{font-size:18px;margin:0 0 4px}
-  .sess{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
-  .sess:first-of-type{border-top:0;margin-top:0;padding-top:0}
-  .meta{color:var(--sub);font-size:13px;margin-bottom:10px}
-  .loop{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer}
-  .loop:hover{border-color:var(--teal)}
-  .loop .t{font-weight:700;font-size:16px}
-  .loop .q{color:var(--sub);font-size:13px;margin:4px 0 10px}
-  .chips span{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;margin-right:6px;background:#eef3f2;color:var(--teal)}
-  .chips .c{background:#fbeee8;color:#9a4a26}
-  .chips .d{background:#e8f4ec;color:var(--ok)}
-  .chips .n{background:#f1efe9;color:var(--sub)}
-  .loop.done{opacity:.6}
-  .loop.done .t{text-decoration:line-through}
-  .drop{font-size:13px;color:var(--bad);margin:6px 0}
-  .drop b{color:var(--ink)}
+
+  .summary{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 16px}
+  .pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px}
+  .pill b{color:var(--teal)}
+  .summary label{margin-left:auto;font-size:13px;color:var(--sub);display:flex;gap:6px;align-items:center;cursor:pointer}
+
+  .sess{margin-bottom:26px}
+  .sess-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  .sess-h h3{margin:0;font-size:19px;letter-spacing:-.01em}
+  .sess-h .meta{color:var(--sub);font-size:13px}
+  .cards{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px}
+  @media (max-width:1300px){.cards{grid-template-columns:1fr}}
+  .c{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 14px 8px}
+  .c.todo{border:1.5px solid var(--teal);box-shadow:0 6px 18px rgba(11,89,95,.08)}
+  .c h4{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);display:flex;justify-content:space-between}
+  .c.todo h4{color:var(--teal)}
+  .c h4 span{font-weight:600;letter-spacing:0;text-transform:none}
+  .it{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:9px 0;border-top:1px solid var(--line)}
+  .it:first-of-type{border-top:0}
+  .it input{width:17px;height:17px;margin-top:2px;accent-color:var(--teal);cursor:pointer}
+  .it input:disabled{cursor:default}
+  .it .t{font-weight:600;line-height:1.35}
+  .it.done .t{text-decoration:line-through;color:var(--sub);font-weight:500}
+  .it .q{font-size:12.5px;color:var(--sub);margin-top:3px;cursor:pointer}
+  .it .q:hover{color:var(--teal);text-decoration:underline}
+  .chips{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+  .chips span{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#eef3f2;color:var(--teal)}
+  .chips .c-consent{background:#fbeee8;color:var(--warm)}
+  .chips .c-done{background:#e8f4ec;color:var(--ok)}
+  .chips .c-open{background:#f1efe9;color:var(--sub)}
+  .chips .c-me{background:#efeaf7;color:#5b3f8f}
+  .none{color:var(--sub);font-size:13px;font-style:italic;padding:6px 0 8px}
+  details.drops{margin-top:8px;font-size:12.5px;color:var(--sub)}
+  details.drops summary{cursor:pointer}
+  details.drops div{color:var(--bad);margin:3px 0}
   .err{color:var(--bad);font-weight:600}
   .empty{color:var(--sub);font-style:italic}
+  .hide-done .it.done{display:none}
 </style>
 </head>
 <body>
 <header>
-  <h1>Open Loops</h1>
-  <p>Prototype: what a session left unfinished, quoted from the note, carried forward until done.</p>
+  <h1>Reminders</h1>
+  <p>Prototype: what each session leaves for later, quoted from the note, ticked off when it happens.</p>
 </header>
 <main>
-  <section class="panel">
+  <section class="panel left">
     <h2>Session notes</h2>
-    <p class="hint">Three consecutive sessions for one fictional client. Edit any of them, then run.</p>
+    <div class="row" style="margin-top:8px"><select id="sample"></select></div>
     <div class="tabs" id="tabs"></div>
     <textarea id="note" spellcheck="false"></textarea>
     <div class="row">
@@ -65,106 +88,171 @@
         <option value="api">Claude API (needs key)</option>
       </select>
       <button class="primary" id="run">Run</button>
-      <button class="ghost" id="demo">Demo without a key</button>
-      <span class="hint" id="status"></span>
+      <button class="ghost" id="demo">Demo</button>
     </div>
-    <p class="hint" style="margin-top:14px"><b>Rules</b> is a keyword baseline with no AI, so you can test everything offline. <b>Claude Code</b> uses the <code>claude</code> CLI signed in with your Claude plan, no API key. <b>Demo</b> feeds a fixed proposal with one invented item and one false "done" claim, to show the span check rejecting both.</p>
+    <div class="row"><span class="hint" id="status"></span></div>
+    <p class="hint" style="margin-top:12px">Edit any note, then Run. Click a quote to see where it came from. Tick an item yourself and it's done for good: it won't carry into later sessions, even after you run again. <b>Demo</b> uses a fixed proposal with one invented item and one false "done" claim, so you can watch both get rejected.</p>
+    <div class="row"><button class="ghost" id="clear" title="Forget your own ticks for this client">Clear my ticks</button></div>
   </section>
 
-  <section class="panel">
-    <h2>Open loops</h2>
-    <div id="out"><p class="empty">Run the sessions to see what's owed after each one.</p></div>
+  <section>
+    <div class="summary" id="summary"></div>
+    <div id="out"><div class="panel"><p class="empty">Run the sessions to see the reminders each one leaves.</p></div></div>
   </section>
 </main>
 
 <script>
-const notes = [];
-let active = 0;
 const $ = (id) => document.getElementById(id);
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const TYPE = { letter_or_form: "Letter or form", billing_or_admin: "Billing or admin", checkpoint: "Checkpoint" };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const CARDS = [
+  { id: "todo", name: "To do", sub: "you owe" },
+  { id: "check_in", name: "Check in on", sub: "client homework" },
+  { id: "prep", name: "Prep for next session", sub: "topics" },
+];
 
-// Only the textarea holds edits; the highlighted read-only view must never overwrite a note.
+let samples = [], sample = null, notes = [], active = 0, lastRun = null;
+
+// Same normalisation as the server's span check, so a tick still matches after a re-run.
+const normalize = (t) => t.toLowerCase().replace(/[‘’‚‛`´]/g, "'").replace(/[“”„‟]/g, '"')
+  .replace(/[‐-―]/g, "-").replace(/\s+/g, " ").replace(/^[\s"'.,;:]+|[\s"'.,;:]+$/g, "").trim();
+const keyOf = (r) => `${r.type}|${normalize(r.source_span)}`;
+const tickStore = () => `reminders-ticks-${sample.id}`;
+function getTicks() { try { return new Set(JSON.parse(localStorage.getItem(tickStore()) || "[]")); } catch { return new Set(); } }
+function setTicks(s) { try { localStorage.setItem(tickStore(), JSON.stringify([...s])); } catch {} }
+
+// ---- notes panel -------------------------------------------------------
 function saveCurrent() { const el = $("note"); if (el.tagName === "TEXTAREA") notes[active] = el.value; }
-
 function showEditor() {
   const el = $("note");
   if (el.tagName === "TEXTAREA") { el.value = notes[active]; return; }
   const ta = document.createElement("textarea"); ta.id = "note"; ta.spellcheck = false; ta.value = notes[active]; el.replaceWith(ta);
 }
-
+const label = (i) => `Session ${sample.start + i}`;
 function renderTabs() {
-  $("tabs").innerHTML = notes.map((_, i) => `<button class="tab ${i === active ? "on" : ""}" data-i="${i}">Session ${i + 3}</button>`).join("");
+  $("tabs").innerHTML = notes.map((_, i) => `<button class="tab ${i === active ? "on" : ""}" data-i="${i}">${label(i)}</button>`).join("");
   $("tabs").querySelectorAll(".tab").forEach((b) => b.onclick = () => { saveCurrent(); active = +b.dataset.i; showEditor(); renderTabs(); });
 }
-
 function showSpan(i, span) {
-  // Swap the textarea for a read-only view with the quote highlighted.
   saveCurrent(); active = i; renderTabs();
-  const text = notes[i];
-  const at = text.toLowerCase().replace(/\s+/g, " ").indexOf(span.toLowerCase().replace(/\s+/g, " "));
   const view = document.createElement("div");
-  view.className = "noteview";
-  if (at >= 0) {
-    // map back onto original text approximately by searching case-insensitively
-    const re = new RegExp(span.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+"), "i");
-    view.innerHTML = esc(text).replace(re, (m) => `<mark>${m}</mark>`);
-  } else view.textContent = text;
-  $("note").replaceWith(view); view.id = "note";
+  view.className = "noteview"; view.id = "note"; view.title = "Click to edit";
+  const re = new RegExp(span.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+"), "i");
+  view.innerHTML = esc(notes[i]).replace(re, (m) => `<mark>${m}</mark>`);
+  $("note").replaceWith(view);
   view.onclick = showEditor;
   view.querySelector("mark")?.scrollIntoView({ block: "center", behavior: "smooth" });
 }
+function loadSample(id) {
+  sample = samples.find((s) => s.id === id); notes = [...sample.notes]; active = 0;
+  showEditor(); renderTabs(); lastRun = null; renderOut();
+}
 
+// ---- run ---------------------------------------------------------------
 async function run(demo) {
   saveCurrent();
   $("run").disabled = $("demo").disabled = true;
-  $("status").textContent = demo ? "Running demo…" : $("provider").value === "rules" ? "Running rules…" : "Asking Claude, one session at a time…";
+  const p = $("provider").value;
+  $("status").textContent = demo ? "Running demo…" : p === "rules" ? "Running rules…" : "Asking Claude, one session at a time…";
   try {
-    const r = await fetch("/api/run", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ notes, demo, provider: $("provider").value }) });
+    const r = await fetch("/api/run", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ notes, demo, provider: p, manualDone: [...getTicks()] }) });
     const data = await r.json();
     if (data.error) throw new Error(data.error);
-    render(data.sessions, demo);
-    $("status").textContent = demo ? "Demo (fixed proposal, no model call)" : `${data.provider} · ${data.sessions.map((s) => (s.ms / 1000).toFixed(1) + "s").join(" · ")}`;
+    lastRun = data;
+    renderOut();
+    $("status").textContent = demo ? "Demo: fixed proposal, no model call" : `${data.provider} · ${data.sessions.map((s) => (s.ms / 1000).toFixed(1) + "s").join(" · ")}`;
   } catch (e) {
-    $("out").innerHTML = `<p class="err">${esc(e.message)}</p>`;
-    $("status").textContent = "";
+    $("out").innerHTML = `<div class="panel"><p class="err">${esc(e.message)}</p></div>`;
+    $("summary").innerHTML = ""; $("status").textContent = "";
   } finally {
     $("run").disabled = $("demo").disabled = false;
   }
 }
 
-function render(sessions) {
-  const seen = new Set();
-  $("out").innerHTML = sessions.map((s, i) => {
-    const open = s.loops.filter((l) => l.status === "open").length;
-    const items = s.loops.map((l) => {
-      const isNew = !seen.has(l.id); seen.add(l.id);
-      const chips = [
-        `<span>${TYPE[l.type]}</span>`,
-        l.status === "done" ? `<span class="d">Closed here</span>` : isNew ? `<span class="n">New</span>` : `<span class="n">Carried from session ${+l.session_id.split("-")[1] + 2}</span>`,
-        l.due ? `<span>Due ${l.due}</span>` : "",
-        l.consent_required && l.status === "open" ? `<span class="c">Consent check · ${esc(l.third_party)}</span>` : "",
-      ].join("");
-      const src = l.status === "done" ? (l.history.at(-1).evidence || l.source_span) : l.source_span;
-      const srcIdx = l.status === "done" ? i : +l.session_id.split("-")[1] - 1;
-      return `<div class="loop ${l.status}" data-i="${srcIdx}" data-span="${esc(src)}">
-        <div class="t">${esc(l.title)}</div>
-        <div class="q">“${esc(src)}”</div>
-        <div class="chips">${chips}</div></div>`;
-    }).join("") || `<p class="empty">Nothing owed.</p>`;
-    const drops = s.rejected.map((r) => `<div class="drop">Dropped <b>${esc(r.item.title || "update")}</b>: ${esc(r.reason)}</div>`).join("");
-    return `<div class="sess"><h2>After session ${i + 3}</h2><div class="meta">${s.date} · ${open} open</div>${items}${drops}</div>`;
-  }).join("");
-  $("out").querySelectorAll(".loop").forEach((el) => el.onclick = () => showSpan(+el.dataset.i, el.dataset.span));
+// ---- reminders ---------------------------------------------------------
+// Each item is shown ONCE, under the session it came from. Later sessions never repeat it;
+// they only change its state: still open, auto-ticked by a later note, or ticked by you.
+function itemsByOrigin(sessions) {
+  const map = new Map();
+  sessions.forEach((s, i) => s.reminders.forEach((r) => {
+    let e = map.get(r.id);
+    if (!e) { e = { item: r, origin: i, lastSeen: i }; map.set(r.id, e); }
+    e.item = r; e.lastSeen = i;
+    if (r.status === "done" && e.closedAt === undefined) {
+      const h = r.history.at(-1);
+      e.closedAt = i; e.how = h.event; e.evidence = h.evidence;
+    }
+  }));
+  return map;
 }
 
-fetch("/api/samples").then((r) => r.json()).then(({ samples, available, default: def }) => {
-  notes.push(...samples); $("note").value = notes[0]; renderTabs();
-  for (const o of $("provider").options) if (!available[o.value]) { o.disabled = true; o.textContent += " · not set up"; }
-  $("provider").value = def;
+function renderOut() {
+  if (!lastRun) { $("summary").innerHTML = ""; $("out").innerHTML = `<div class="panel"><p class="empty">Run the sessions to see the reminders each one leaves.</p></div>`; return; }
+  const ticks = getTicks();
+  const all = [...itemsByOrigin(lastRun.sessions).values()];
+  const state = (e) => {
+    if (ticks.has(keyOf(e.item))) return "mine";
+    if (e.closedAt !== undefined && e.how !== "ticked by therapist") return "auto";
+    return "open";
+  };
+  const openCount = (card) => all.filter((e) => e.item.card === card && state(e) === "open").length;
+  $("summary").innerHTML = `<span class="pill">Open now: <b>${openCount("todo")}</b> to do</span>
+    <span class="pill"><b>${openCount("check_in")}</b> to check in on</span>
+    <span class="pill"><b>${openCount("prep")}</b> to prep</span>
+    <label><input type="checkbox" id="hideDone" ${document.body.classList.contains("hide-done") ? "checked" : ""}> Hide done</label>`;
+  $("hideDone").onchange = (ev) => document.body.classList.toggle("hide-done", ev.target.checked);
+
+  const last = lastRun.sessions.length - 1;
+  const blocks = lastRun.sessions.map((s, i) => {
+    const mine = all.filter((e) => e.origin === i);
+    const cards = CARDS.map((c) => {
+      const items = mine.filter((e) => e.item.card === c.id);
+      const openN = items.filter((e) => state(e) === "open").length;
+      const rows = items.map((e) => {
+        const r = e.item, st = state(e);
+        const chips = [];
+        if (st === "auto") chips.push(`<span class="c-done" title="${esc(e.evidence)}">Done in ${label(e.closedAt)}</span>`);
+        else if (st === "mine") chips.push(`<span class="c-me">Ticked by you</span>`);
+        else if (i < last) chips.push(`<span class="c-open">Still open after ${label(last)}</span>`);
+        if (r.due) chips.push(`<span>Due ${r.due}</span>`);
+        if (r.consent_required && st === "open") chips.push(`<span class="c-consent">Consent check · ${esc(r.third_party)}</span>`);
+        const showQuote = st === "auto" ? e.evidence : r.source_span;
+        const quoteFrom = st === "auto" ? e.closedAt : i;
+        return `<div class="it ${st === "open" ? "" : "done"}">
+          <input type="checkbox" data-key="${esc(keyOf(r))}" ${st !== "open" ? "checked" : ""} ${st === "auto" ? "disabled title=\"Ticked from a later note\"" : ""}>
+          <div><div class="t">${esc(r.title)}</div>
+          <div class="q" data-i="${quoteFrom}" data-span="${esc(showQuote)}">“${esc(showQuote)}”</div>
+          ${chips.length ? `<div class="chips">${chips.join("")}</div>` : ""}</div></div>`;
+      }).join("");
+      return `<div class="c ${c.id}"><h4>${c.name}<span>${items.length ? `${openN} open` : c.sub}</span></h4>${rows || `<div class="none">Nothing here</div>`}</div>`;
+    }).join("");
+    const drops = s.rejected.length ? `<details class="drops"><summary>Dropped by the checks (${s.rejected.length})</summary>${s.rejected.map((d) => `<div>${esc(d.item.title || "Closing claim")}: ${esc(d.reason)}</div>`).join("")}</details>` : "";
+    return `<div class="sess"><div class="sess-h"><h3>${label(i)} - ${esc(s.title)}</h3><span class="meta">${s.date}</span></div><div class="cards">${cards}</div>${drops}</div>`;
+  }).reverse().join("");
+  $("out").innerHTML = blocks;
+
+  $("out").querySelectorAll(".q").forEach((el) => el.onclick = () => showSpan(+el.dataset.i, el.dataset.span));
+  $("out").querySelectorAll(".it input:not([disabled])").forEach((cb) => cb.onchange = () => {
+    const t = getTicks();
+    cb.checked ? t.add(cb.dataset.key) : t.delete(cb.dataset.key);
+    setTicks(t);
+    renderOut();
+    if (!cb.checked) $("status").textContent = "Unticked. Run again to carry it forward into later sessions.";
+  });
+}
+
+// ---- boot --------------------------------------------------------------
+fetch("/api/samples").then((r) => r.json()).then((data) => {
+  samples = data.samples;
+  $("sample").innerHTML = samples.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("sample").onchange = (e) => loadSample(e.target.value);
+  for (const o of $("provider").options) if (!data.available[o.value]) { o.disabled = true; o.textContent += " · not set up"; }
+  $("provider").value = data.default;
+  loadSample(samples[0].id);
 });
 $("run").onclick = () => run(false);
-$("demo").onclick = () => run(true);
+$("demo").onclick = () => { if (sample.id !== "jordan") { $("sample").value = "jordan"; loadSample("jordan"); } run(true); };
+$("clear").onclick = () => { setTicks(new Set()); renderOut(); $("status").textContent = "Your ticks for this client are cleared. Run again to recompute."; };
 </script>
 </body>
 </html>

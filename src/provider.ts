@@ -1,54 +1,68 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Candidate, CarryUpdate, OpenLoop } from "./types.js";
+import type { Candidate, CarryUpdate, Reminder } from "./types.js";
 
 export interface ProposeInput {
   note: string;
   sessionDate: string; // ISO date, used to turn "in 3 weeks" into a due date
-  previous: OpenLoop[]; // items still open from earlier sessions with this client
+  previous: Reminder[]; // items still open from earlier sessions with this client
 }
 
 export interface Proposal {
+  session_title?: string;
   candidates: Candidate[];
   updates: CarryUpdate[];
 }
 
-/** Anything that can propose loops. The pipeline never trusts it: see ground.ts. */
+/** Anything that can propose reminders. The pipeline never trusts it: see ground.ts. */
 export interface Provider {
   propose(input: ProposeInput): Promise<Proposal>;
 }
 
-export const SYSTEM = `You read a therapist's session note and list what the THERAPIST still owes after the session.
+export const SYSTEM = `You read a therapist's session note and build reminders for the next session.
 
-Only three kinds of item count:
-- letter_or_form: a letter, report, form or document someone asked for (doctor, insurer, employer, school, lawyer, the client).
-- billing_or_admin: a billing, insurance, receipt, scheduling-policy or fee question the client raised that needs an answer.
+Five kinds of item:
+
+THERAPIST TO-DOS. Read the WHOLE note for these, not just a "therapist homework" section; requests often sit under admin or summary lines while the homework section says N/A.
+- letter_or_form: a letter, report, summary, form or document someone asked the therapist for (doctor, insurer, employer, school, lawyer, the client).
+- billing_or_admin: a billing, insurance, superbill, receipt, fee or policy question the client raised that needs an answer.
 - checkpoint: a dated or conditional decision the therapist committed to revisit (e.g. "consider a referral if no improvement in 3 weeks").
 
-Do NOT include: client homework, ordinary "next session" plans, or clinical observations.
+CLIENT HOMEWORK
+- client_homework: something the client agreed to do before next time, so the therapist can check in on it.
 
-Completed means a concrete action is stated (e.g. "receipt provided", "letter sent", "form signed"). Vague lines such as "addressed", "discussed", "reviewed" or "talked about" do NOT mean completed: if a request appears and only a vague line follows it, the item is still owed.
+PREP
+- next_topic: something specific planned for the next session. Skip generic lines like "next session in one week".
+
+Completed means a concrete action is stated (e.g. "receipt provided", "letter sent", "form signed"). Vague lines such as "addressed", "discussed", "went over" or "talked about" do NOT complete a to-do. Drafted, started or prepared is NOT done either.
 
 Rules:
-- source_span must be copied EXACTLY from the note, 6 to 25 words, with no edits. If you can't quote it, leave the item out.
+- source_span must be copied EXACTLY from the note, 4 to 25 words, with no edits. If you can't quote it, leave the item out.
 - Prefer missing an item over inventing one.
+- title: short and plain, under 10 words.
 - due: ISO date (YYYY-MM-DD) only when the note implies timing; compute it from the session date. Otherwise null.
-- third_party: who receives the output if not the client (e.g. "family doctor", "insurer"), else null.
+- third_party: for to-dos, who receives the output if not the client (e.g. "family doctor", "lawyer"), else null. Always null for homework and topics.
+- session_title: the main topic of this session in 2 to 6 words, e.g. "Work anxiety and sleep".
 
-You may also be given items still open from earlier sessions. For each, report status "done" only if THIS note shows it was handled, and quote that evidence exactly in evidence_span. Otherwise "still_open" with evidence_span null. Never repeat an earlier item as a new candidate.`;
+You may also be given items still open from earlier sessions. For each, report status "done" only if THIS note shows it happened, and quote that evidence exactly in evidence_span:
+- to-do: the concrete action was taken (sent, provided, signed, decided).
+- client_homework: the note shows the homework was reviewed or reported on, even if only partly done.
+- next_topic: the note shows the topic was actually covered in this session.
+Otherwise "still_open" with evidence_span null. Never repeat an earlier item as a new candidate.`;
 
 export const TOOL: Anthropic.Tool = {
-  name: "report_open_loops",
-  description: "Report the follow-ups the therapist owes, and the status of earlier open items.",
+  name: "report_reminders",
+  description: "Report reminders from this session and the status of earlier open items.",
   input_schema: {
     type: "object",
     properties: {
+      session_title: { type: "string", description: "Main topic of the session, 2 to 6 words." },
       candidates: {
         type: "array",
         items: {
           type: "object",
           properties: {
-            type: { type: "string", enum: ["letter_or_form", "billing_or_admin", "checkpoint"] },
-            title: { type: "string", description: "Short imperative task, under 10 words." },
+            type: { type: "string", enum: ["letter_or_form", "billing_or_admin", "checkpoint", "client_homework", "next_topic"] },
+            title: { type: "string", description: "Short and plain, under 10 words." },
             source_span: { type: "string", description: "Exact quote from the note." },
             third_party: { type: ["string", "null"] },
             due: { type: ["string", "null"], description: "YYYY-MM-DD or null" },
@@ -69,7 +83,7 @@ export const TOOL: Anthropic.Tool = {
         },
       },
     },
-    required: ["candidates", "updates"],
+    required: ["session_title", "candidates", "updates"],
   },
 };
 
@@ -90,7 +104,7 @@ export class AnthropicProvider implements Provider {
 
     const res = await this.client.messages.create({
       model: this.model,
-      max_tokens: 1500,
+      max_tokens: 2500,
       temperature: 0,
       system: SYSTEM,
       tools: [TOOL],
@@ -104,9 +118,9 @@ export class AnthropicProvider implements Provider {
     });
 
     const block = res.content.find((b) => b.type === "tool_use");
-    if (!block || block.type !== "tool_use") throw new Error("Model did not return the report_open_loops tool call.");
+    if (!block || block.type !== "tool_use") throw new Error("Model did not return the report_reminders tool call.");
     const out = block.input as Partial<Proposal>;
-    return { candidates: out.candidates ?? [], updates: out.updates ?? [] };
+    return { session_title: out.session_title, candidates: out.candidates ?? [], updates: out.updates ?? [] };
   }
 }
 

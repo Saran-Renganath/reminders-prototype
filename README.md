@@ -1,6 +1,16 @@
-# Open Loops
+# Reminders (Open Loops)
 
-A small prototype for one idea: **after every therapy session note, list what the therapist still owes, quote where it came from, and keep it open until it's done.**
+A small prototype for one idea: **after every therapy session note, show what it leaves for later, quote where each item came from, and tick it off when it happens.**
+
+Each session gets three cards:
+
+| Card | What's in it | Ticked when |
+|---|---|---|
+| **To do** | What the therapist owes: letters, forms, superbills, billing answers, dated decisions. Pulled from the whole note, not just the "therapist homework" section. | A later note shows a concrete action ("sent", "provided"). "Addressed" or "drafted" doesn't count. |
+| **Check in on** | Homework the client agreed to | A later note shows it was reviewed |
+| **Prep for next session** | Topics planned for next time | A later note shows it was covered |
+
+Each item appears **once**, under the session it came from. Later sessions never repeat it; they only change its state ("Still open", "Done in Session 5"). When the therapist ticks an item by hand, it's done for good: it's never carried forward or sent to the model again, even after a re-run.
 
 I built this after running two test sessions through a Klarify trial account. Session 3's note logged that the family doctor wanted a progress letter and the client asked about insurance billing, then listed therapist homework as "N/A". By session 4, both had disappeared. Klara could find them and draft the letter, but only when asked.
 
@@ -12,17 +22,17 @@ note ──▶ propose (Claude, one tool call) ──▶ span check ──▶ de
 earlier open loops ──▶ "is this closed?" ──────┘  (closing also needs a quote from the new note)
 ```
 
-- **Three item types:** `letter_or_form`, `billing_or_admin`, `checkpoint` (dated or conditional decisions like "consider a referral in 3 weeks").
+- **Five item types:** `letter_or_form`, `billing_or_admin`, `checkpoint` (To do), `client_homework` (Check in on), `next_topic` (Prep).
 - **Span check:** every item must quote the note exactly (after normalising case, whitespace and quote marks). No quote, no item. See `src/ground.ts`.
 - **Carry-forward:** items stay open across sessions. A carried item only closes if the new note contains a quote proving it was handled.
-- **Guards:** max 3 new items per session, duplicate detection against what's already open, malformed due dates ignored, consent flag whenever a third party (doctor, insurer, employer) is involved.
+- **Guards:** caps per card per session (3 to-dos, 5 check-ins, 5 topics), duplicate detection against what's already open, malformed due dates ignored, consent flag whenever a third party (doctor, insurer, employer) is involved.
 - **Cheap by design:** runs on the note, not the transcript, with a small model and one structured call. Drafting the letter itself is out of scope here and would only run when the therapist taps.
 
 ## Run it (no API key needed)
 
 ```bash
 npm install
-npm test                                   # 21 unit tests, fully offline
+npm test                                   # 27 unit tests, fully offline
 npm run dev                                # http://localhost:3000
 npm run eval -- --provider=rules           # offline keyword baseline
 npm run eval -- --provider=claude-code     # real Claude, via your Claude subscription
@@ -47,7 +57,7 @@ With no flag, it uses the API if a key is set, then Claude Code if installed, th
 | `src/provider.ts` | Shared prompt and schema, API provider, fixed provider for tests |
 | `src/claudeCode.ts` | Claude Code CLI provider (no API key) |
 | `src/rules.ts` | Offline keyword baseline |
-| `evals/` | Five fictional notes across three clients, hand-labelled expectations, eval runner |
+| `evals/` | Eight fictional notes across four clients (incl. Maya's two traps), hand-labelled To do expectations, eval runner |
 | `test/` | Unit tests for the span check and pipeline |
 | `web/index.html` | One-page demo UI; click any item to highlight its quote in the note |
 
