@@ -1,0 +1,22 @@
+{
+  "name": "open-loops",
+  "version": "0.1.0",
+  "description": "Prototype: pull grounded follow-ups (open loops) out of therapy session notes and carry them forward.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx evals/run.ts",
+    "extract": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.60.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
