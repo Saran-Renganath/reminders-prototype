@@ -84,14 +84,23 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const TYPE = { letter_or_form: "Letter or form", billing_or_admin: "Billing or admin", checkpoint: "Checkpoint" };
 
+// Only the textarea holds edits; the highlighted read-only view must never overwrite a note.
+function saveCurrent() { const el = $("note"); if (el.tagName === "TEXTAREA") notes[active] = el.value; }
+
+function showEditor() {
+  const el = $("note");
+  if (el.tagName === "TEXTAREA") { el.value = notes[active]; return; }
+  const ta = document.createElement("textarea"); ta.id = "note"; ta.spellcheck = false; ta.value = notes[active]; el.replaceWith(ta);
+}
+
 function renderTabs() {
   $("tabs").innerHTML = notes.map((_, i) => `<button class="tab ${i === active ? "on" : ""}" data-i="${i}">Session ${i + 3}</button>`).join("");
-  $("tabs").querySelectorAll(".tab").forEach((b) => b.onclick = () => { notes[active] = $("note").value; active = +b.dataset.i; $("note").value = notes[active]; renderTabs(); });
+  $("tabs").querySelectorAll(".tab").forEach((b) => b.onclick = () => { saveCurrent(); active = +b.dataset.i; showEditor(); renderTabs(); });
 }
 
 function showSpan(i, span) {
   // Swap the textarea for a read-only view with the quote highlighted.
-  notes[active] = $("note").value; active = i; renderTabs();
+  saveCurrent(); active = i; renderTabs();
   const text = notes[i];
   const at = text.toLowerCase().replace(/\s+/g, " ").indexOf(span.toLowerCase().replace(/\s+/g, " "));
   const view = document.createElement("div");
@@ -102,12 +111,12 @@ function showSpan(i, span) {
     view.innerHTML = esc(text).replace(re, (m) => `<mark>${m}</mark>`);
   } else view.textContent = text;
   $("note").replaceWith(view); view.id = "note";
-  view.onclick = () => { const ta = document.createElement("textarea"); ta.id = "note"; ta.spellcheck = false; ta.value = notes[active]; view.replaceWith(ta); };
+  view.onclick = showEditor;
   view.querySelector("mark")?.scrollIntoView({ block: "center", behavior: "smooth" });
 }
 
 async function run(demo) {
-  if ($("note").tagName === "TEXTAREA") notes[active] = $("note").value;
+  saveCurrent();
   $("run").disabled = $("demo").disabled = true;
   $("status").textContent = demo ? "Running demo…" : $("provider").value === "rules" ? "Running rules…" : "Asking Claude, one session at a time…";
   try {
