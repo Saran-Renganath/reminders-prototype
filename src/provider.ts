@@ -24,7 +24,9 @@ Only three kinds of item count:
 - billing_or_admin: a billing, insurance, receipt, scheduling-policy or fee question the client raised that needs an answer.
 - checkpoint: a dated or conditional decision the therapist committed to revisit (e.g. "consider a referral if no improvement in 3 weeks").
 
-Do NOT include: client homework, ordinary "next session" plans, clinical observations, or anything already completed in the session.
+Do NOT include: client homework, ordinary "next session" plans, or clinical observations.
+
+Completed means a concrete action is stated (e.g. "receipt provided", "letter sent", "form signed"). Vague lines such as "addressed", "discussed", "reviewed" or "talked about" do NOT mean completed: if a request appears and only a vague line follows it, the item is still owed.
 
 Rules:
 - source_span must be copied EXACTLY from the note, 6 to 25 words, with no edits. If you can't quote it, leave the item out.
